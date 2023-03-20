@@ -242,3 +242,17 @@ def test_lightning_val_udpates_to_studio(tmp_dir, mocker, monkeypatch):
     # Without `self.experiment._latest_studio_step -= 1`
     # This would be empty
     assert len(val_loss["data"]) == 1
+
+
+def test_lightning_log_artifact(tmp_dir, mocker):
+    model = ValLitXOR()
+    dvclive_logger = DVCLiveLogger()
+    log_artifact = mocker.patch.object(dvclive_logger.experiment, "log_artifact")
+    trainer = Trainer(
+        logger=dvclive_logger,
+        max_steps=8,
+        val_check_interval=2,
+        log_every_n_steps=1,
+    )
+    trainer.fit(model)
+    log_artifact.assert_called_with(trainer.checkpoint_callback.dirpath)

@@ -7,6 +7,7 @@ from lightning_fabric.utilities.logger import (
     _sanitize_callable_params,
     _sanitize_params,
 )
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers.logger import Logger, rank_zero_experiment
 from pytorch_lightning.utilities import rank_zero_only
 from torch import is_tensor
@@ -57,6 +58,7 @@ class DVCLiveLogger(Logger):
             self._live_init["dir"] = dir
         self._experiment = experiment
         self._version = run_name
+        self._checkpoint_callback: Optional[ModelCheckpoint] = None
         # Force Live instantiation
         self.experiment  # noqa pylint: disable=pointless-statement
 
@@ -113,6 +115,15 @@ class DVCLiveLogger(Logger):
                 self.experiment._latest_studio_step -= 1
             self.experiment.next_step()
 
+    def _log_checkpoint(self, checkpoint_callback):
+        self.experiment.log_artifact(checkpoint_callback.dirpath)
+
+    def after_save_checkpoint(self, checkpoint_callback: ModelCheckpoint) -> None:
+        self._checkpoint_callback = checkpoint_callback
+        self._log_checkpoint(checkpoint_callback)
+
     @rank_zero_only
     def finalize(self, status: str) -> None:
+        if self._checkpoint_callback is not None:
+            self._log_checkpoint(self._checkpoint_callback)
         self.experiment.end()
